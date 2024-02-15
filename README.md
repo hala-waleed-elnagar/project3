@@ -2,8 +2,8 @@
 #include <util/delay.h>
 #include "ADC.h"
 #include "LCD.h"
-#include "pwm.h"
-#include "common_macros.h"
+
+
 
 #define _BV(bit)  (1<<bit)
 #define BV(bit)  (1<<bit)
@@ -34,22 +34,13 @@
 #define BUTTON_CH 0
 #define BUTTON_DDR DDRC
 
-#define fanpin     3 //pin 3 in PORTD
+
 #define HTLedPin   6 //PIN 6 IN PORTD
 #define LTLedPin   11 //pin 3 in PORTB
-#define heaterPin  4 //pin 4 in PORTD
-#define sensorPin  0 //pin 0 in PORTC
-#define motorPin1  7 //pin 7 in PORTD
-#define motorPin2  0 //PIN0 IN PORTB 
+
 void init();
 
-/* upper and lower temperature thresholds values*/
-int lower =10;
-int upper =15;
 
-/* temperatures readings from temperature sensor*/
-int last_temperature = 0;
-int temperatue = 0;
 
 int button = 0;  //to read initial status of multiple buttons on the LCD Shield
 char _str[3];    
@@ -124,7 +115,6 @@ void init() {
   LCD_Init();
   LCD_String_xy(0, 0, "LT:9 to ");
   LCD_String_xy(0, 5, " HT:20");
-  LCD_String_xy(1, 0, "Temp: ");
   LCD_String_xy(1, 8, " - ");
   LCD_String_xy(1, 13, "C");
 
@@ -135,8 +125,7 @@ void init() {
   // define pins of leds  as output
   Dio_SetPinDirection(LOWER_LED_DDR, LOWER_LED, 1);
   Dio_SetPinDirection(UPPER_LED_DDR, UPPER_LED, 1);
-  pwm_init(11, 'A');
-  pwm_init(3, 'B');
+ 
 
   //initializing timer 1 as a counter
   TCCR1B |= (1 << CS11) | (1 << CS10);
@@ -145,8 +134,6 @@ void init() {
 
 
 
-int highTemp = 20;
-int lowTemp = 9;
 
 
 
@@ -171,27 +158,10 @@ char outputValue = map(sensorVal, 0, 1023, 0, 255); // temparture voltage from 8
     char g = Serial.read(); // comunication between computer and arduino 
     }
 
-    if (tempSensor > highTemp) {
-    SET_BIT(PORTD, fanpin);           //Start the fan 
-    Timer0_PWM_Init((sensorVal-720)/10 );   //PWM on HTledpin to change brightness
-    CLEAR_BIT(PORTD, heaterPin);   //shutdown the heater 
-    Timer2_PWM_Init(0); //shutdown LTledpin 
-    SET_BIT(PORTD,motorPin1);  
-    CLEAR_BIT(PORTB,motorPin2);
-  } else if (tempSensor < lowTemp) {
-    CLEAR_BIT(PORTD, fanpin); //Stop the fan 
-    Timer0_PWM_Init(0); //Shutdown HTledpin 
-    CLEAR_BIT(PORTD, heaterPin); //shutdown the heater 
-    Timer2_PWM_Init((sensorVal/4)); //PWM on LTledpin 
-    CLEAR_BIT(PORTD,motorPin1);  
-    SET_BIT(PORTB,motorPin2);
+
+    
   } else {
-    CLEAR_BIT(PORTD, fanpin); //Stop the fan 
-    Timer0_PWM_Init(0); //Shutdown HTledpin 
-    SET_BIT(PORTD, heaterPin); //Turn on the heater 
-    Timer2_PWM_Init(0); //shutdown LTledpin 
-    CLEAR_BIT(PORTD,motorPin1);  
-    CLEAR_BIT(PORTB,motorPin2);
+    
 
   }
   
@@ -204,12 +174,8 @@ return 0;
 
 void IO_init()
 {
-  SET_BIT(DDRD,fanpin);    //fan pin as output
   SET_BIT(DDRD,HTLedPin);  //HTLedPin as output
   SET_BIT(DDRB,LTLedPin);  //HTLedPin as output
-  SET_BIT(DDRD,heaterPin); //HeaterPin as output
-  SET_BIT(DDRD,motorPin1);  //motorPin1 as output
-  SET_BIT(DDRB,motorPin2);  //motorPin2 as output
   CLEAR_BIT(DDRC,sensorPin);  //SensorPin as input
 }
 
@@ -235,40 +201,9 @@ unsigned short ADC_readChannel() //This for ADC0 only
 
 }
 
-void Timer0_PWM_Init(unsigned char set_duty_cycle)
-{
-	TCNT0 = 0; // Set Timer Initial Value to 0
 
-	OCR0A  = set_duty_cycle; //Set Compare value
-
-	DDRD  = DDRD | (1<<PD6); // Configure PB3/OC0 as output pin --> pin where the PWM signal is generated from MC
-
-	/* Configure timer control register
-	 * 1. Fast PWM mode FOC0=0
-	 * 2. Fast PWM Mode WGM01=1 & WGM00=1
-	 * 3. Clear OC0 when match occurs (non inverted mode) COM0A=0 & COM0A1=1
-	 * 4. clock = F_CPU/8 CS00=0 CS01=1 CS02=0
-	 */
-	TCCR0A = (1<<WGM00) | (1<<WGM01) | (1<<COM0A1) ;
-  TCCR0B = (1<<CS01);
 }
 
-void Timer2_PWM_Init(unsigned char set_duty_cycle)
-{
-	TCNT2 = 0; // Set Timer Initial Value to 0
 
-	OCR2A  = set_duty_cycle; //Set Compare value
-
-	DDRB  = DDRB | (1<<PB3); // Configure PB3/OC2A as output pin --> pin where the PWM signal is generated from MC
-
-	/* Configure timer control register
-	 * 1. Fast PWM mode FOC0=0
-	 * 2. Fast PWM Mode WGM01=1 & WGM00=1
-	 * 3. Clear OC0 when match occurs (non inverted mode) COM00=0 & COM01=1
-	 * 4. clock = F_CPU/8 CS00=0 CS01=1 CS02=0
-	 */
-	TCCR2A = (1<<WGM20) | (1<<WGM21) | (1<<COM2A1) ;
-  TCCR2B = (1<<CS21); // power width modulation parameters 
-}
 
 
